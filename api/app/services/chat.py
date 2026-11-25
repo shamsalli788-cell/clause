@@ -1,70 +1,80 @@
-from langchain.chat_models import init_chat_model
-from langchain_qdrant import QdrantVectorStore
-from pydantic import BaseModel 
+# from langchain.chat_models import init_chat_model
+# from langchain_qdrant import QdrantVectorStore, RetrievalMode, FastEmbedSparse
+# from pydantic import BaseModel
 
-from core.config import get_settings, get_embeddings, get_qdrant_client
+# from app.core.config import get_settings, get_qdrant_client, get_embeddings
 
-NO_ANSWER = ""
 
-class source():
-    source:str
-    page: int | None=None
-    score: float
+# NO_ANSWER = "I don't know."
 
-class Answer(BaseModel):
-    answer: str
-    sources: list[source]
+# class Source(BaseModel):
+#     source: str
+#     page: int | None = None
+#     score: float
 
-class RAGService:
-    def __init__(self) -> None:
-          self.settings = get_settings()
-          self.client = get_qdrant_client(settings=self.settings):
+# class Answer(BaseModel):
+#     answer: str
+#     sources: list[Source]
 
-          if not self.client.collection_exists(collection_name=self.settings.qdrant_collection):
-              raise ValueError(f"Collection {self.settings.qdrant_collection} does not exist. Please run the ingestion process first.")
-          self.store = QdrantVectorStore(
-              client=self.client,
-              collection_name=self.settings.collection_name,
-              embedding=get_embeddings(settings=self.settings)
-          )
-          self.llm = init_chat_model(
-               model=self.settings.chat_model,
-               provider=self.settings.chat_provider,
-               temperature=self.settings.temperature)
+# class RAGService():
+#     def __init__(self) -> None:
+#         self.settings = get_settings()
 
-    def ask(self, question: str) -> None:
-         question = question.strip()
+# self.client = get_qdrant_client(self.settings)
+# if not self.client.collection_exists(self.settings.collection_name):
+#     raise RuntimeError(f"Collection {self.settings.collection_name} not found!")
 
-         if not question:
-                raise ValueError("Question cannot be empty.")
-         results = self.store.similarity_search_with_score(
-                query=question,
-                k=self.settings.top_k
-         )
+# self.store = QdrantVectorStore(
+#     client=self.client,
+#     collection_name=self.settings.collection_name,
+#     embedding=get_embeddings( self.settings),
+#     sparse_embedding=FastEmbedSparse(model_name="Qdrant/bm25"),
+#     retrieval_mode=RetrievalMode.HYBRID,
+#     vector_name="dense",
+#     sparse_vector_name="sparse"
+# )
 
-         if not results:
-                return Answer(answer="NO_ANSWER", sources=[])
-         context = "/n/n".join(doc.page_content for doc, _ in results)
+# # LLM
+# self.llm = init_chat_model(
+#     model=self.settings.chat_model,
+#     model_provider=self.settings.chat_provider,
+#     api_key=self.settings.chat_api_key,
+#     # temperature=self.settings.chat_temperature,
+# )
 
-         message = [
-                {"role": "system", "content": self.settings.system},
-                {"role": "user", "content": f"Context: {context}"},
-                {"role": "user", "content": f"Question: {question}"}
-         ]
+# def ask(self, question: str):
+#     question = question.strip()
+#     if not question:
+#         raise ValueError("Question must be not empty")
 
-         return Answer(
-              answer= self.llm.invoke(input=messages).text,
-                sources=[
-                     source(
-                          source=doc.metadata.get("source", "unknown"),
-                          page=doc.metadata.get("page"),
-                          score=round(number=store, ndigits=4)
-                  )
-                   for doc, store in results
-                   ]
-         )
-         
+#     results = self.store.similarity_search_with_score(
+#         query=question,
+#         k=self.settings.top_k,
+#         score_threshold=self.settings.score_threshold
+#     )
 
-    def close(self) -> None:
-            self.client.close()
-              
+#     if not results:
+#         return Answer(answer=NO_ANSWER, sources=[])
+
+#     context = "\n\n".join(doc.page_content for doc, _ in results)
+
+#     messages = [
+#         {"role": "system", "content": self.settings.system_prompt},
+#         # {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {question}"},
+#         {"role": "user", "content": f"Handbook text:\n{context}\n\nCustomer question: {question}"},
+#     ]
+
+#     return Answer(
+#         answer=self.llm.invoke(messages).text,
+#         sources=[
+#             Source(
+#                 source=doc.metadata.get("source", "unknown"),
+#                 page=doc.metadata.get("page"),
+#                 score=round(score, 4)
+#             )
+#             for doc, score in results
+#         ]
+#     )
+
+# def close(self):
+#     self.client.close()
